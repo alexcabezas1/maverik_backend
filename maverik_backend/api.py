@@ -1,8 +1,11 @@
 import logging
 import secrets
+from contextlib import asynccontextmanager
+from functools import partial
 from typing import Annotated
 
 from fastapi import Depends, FastAPI
+from fastapi_utils.tasks import repeat_every
 from sqlalchemy.orm import Session
 
 from maverik_backend.core import schemas, services
@@ -18,7 +21,23 @@ logging.basicConfig(
 
 app_config: Settings = load_config()
 
-app = FastAPI()
+servicios_urls = [
+    "https://maverik-backend.onrender.com/",
+]
+
+
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    mantener_servicios_activos_tarea = repeat_every(
+        seconds=480,
+        raise_exceptions=False,
+    )(partial(services.mantener_servicios_activos, servicios_urls))
+    await mantener_servicios_activos_tarea()
+
+    yield
+
+
+app = FastAPI(lifespan=lifespan)
 secret_key = b"k4.local.doPhJGTf4E4lAtRrC8WKUmr18LwF6T_r-kI9D1C_J-k="  # TODO: auth.create_symmetric_key()
 
 
@@ -98,3 +117,47 @@ async def nueva_sesion_asesoria(
         sesion_asesoria = services.crear_sesion_asesoria(db=db, valores=valores)
 
     return sesion_asesoria
+
+
+@app.post(
+    "/copilot/sessions/{session_id}",
+    response_model=schemas.SesionAsesoriaDetalle,
+    tags=["copilot"],
+)
+async def agregar_detalle_asesoria(
+    session_id: int,
+    data: schemas.SesionAsesoriaDetalleRequest,
+    auth_token: Annotated[bytes, Depends(auth.PasetoBearer(key=secret_key))],
+    db: Annotated[Session, Depends(obtener_db)],
+):
+    valores = schemas.SesionAsesoriaDetalleCrear(
+        sesion_asesoria_id=session_id,
+        texto_usuario=data.texto_usuario,
+        texto_sistema=data.texto_sistema,
+    )
+
+    sesion_asesoria_detalle = services.crear_sesion_asesoria_detalle(db=db, valores=valores)
+
+    return sesion_asesoria_detalle
+
+
+@app.get(
+    "/copilot/sessions/{session_id}",
+    response_model=list[schemas.SesionAsesoriaDetalle],
+    tags=["copilot"],
+)
+async def ver_sesion_asesoria_detalle(
+    session_id: int,
+    auth_token: Annotated[bytes, Depends(auth.PasetoBearer(key=secret_key))],
+    db: Annotated[Session, Depends(obtener_db)],
+):
+    detalles = services.cargar_sesion_asesoria_detalles(db=db, sesion_asesoria_id=session_id)
+    return [
+        schemas.SesionAsesoriaDetalle(
+            id=r.id,
+            sesion_asesoria_id=r.sesion_asesoria_id,
+            texto_usuario=r.texto_usuario,
+            texto_sistema=r.texto_sistema,
+        )
+        for r in detalles
+    ]

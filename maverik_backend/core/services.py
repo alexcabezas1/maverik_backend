@@ -1,3 +1,6 @@
+import logging
+
+import requests
 from sqlalchemy.exc import NoResultFound
 from sqlalchemy.orm import Query, Session
 
@@ -58,7 +61,7 @@ def crear_sesion_asesoria_detalle(
 
 
 def verificar_usuario(db: Session, data: schemas.UsuarioLogin) -> Usuario | None:
-    query = Query([Usuario]).filter(
+    query = Query(Usuario).filter(
         Usuario.email == data.email,
         Usuario.clave == data.clave,
     )
@@ -66,3 +69,23 @@ def verificar_usuario(db: Session, data: schemas.UsuarioLogin) -> Usuario | None
         return query.with_session(db).one()
     except NoResultFound:
         return None
+
+
+def cargar_sesion_asesoria_detalles(db: Session, sesion_asesoria_id: int) -> list[SesionAsesoriaDetalle]:
+    query = Query(SesionAsesoriaDetalle).filter_by(sesion_asesoria_id=sesion_asesoria_id)
+    try:
+        return query.with_session(db).all()
+    except NoResultFound:
+        return None
+
+
+def mantener_servicios_activos(urls: list[str]):
+    for url in urls:
+        try:
+            respuesta = requests.get(url)
+            if respuesta.status_code == 200:
+                logging.info("Llamada exitosa al servicio {}".format(url))
+            else:
+                logging.info("Error en la llamada al servicio: Código {}".format(respuesta.status_code))
+        except Exception as e:
+            print("Ocurrió un error: {}".format(e))

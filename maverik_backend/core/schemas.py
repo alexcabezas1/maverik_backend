@@ -73,9 +73,15 @@ class SesionAsesoriaDetalleCrear(BaseModel):
 
 
 class SesionAsesoriaDetalle(BaseModel):
+    id: int
     sesion_asesoria_id: int
     texto_usuario: str
     texto_sistema: str
+
+
+class SesionAsesoriaConDetalles(BaseModel):
+    id: int
+    detalles: list[SesionAsesoriaDetalle]
 
 
 class UsuarioCrearRequest(BaseModel):
@@ -97,3 +103,8 @@ class SesionAsesoriaCrearRequest(BaseModel):
     capital_inicial: float
     horizonte_temporal_anios: int
     tolerancia_al_riesgo_id: int
+
+
+class SesionAsesoriaDetalleRequest(BaseModel):
+    texto_usuario: str
+    texto_sistema: str

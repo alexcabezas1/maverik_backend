@@ -218,7 +218,6 @@ class SesionAsesoria(Base):
     objetivo: Mapped["Objetivo"] = relationship(back_populates="sesiones_asesoria")
     usuario: Mapped["Usuario"] = relationship(back_populates="sesiones_asesoria")
     tolerancia_al_riesgo: Mapped["ToleranciaAlRiesgo"] = relationship(back_populates="sesiones_asesoria")
-    sesion_asesoria_detalles: Mapped["SesionAsesoriaDetalle"] = relationship(back_populates="sesion_asesoria")
 
     class Config:
         use_enum_values = True
@@ -241,11 +240,10 @@ class SesionAsesoriaDetalle(Base):
     texto_usuario: Mapped[str] = mapped_column(String(2000))
     texto_sistema: Mapped[str] = mapped_column(String(2000))
 
-    sesion_asesoria: Mapped["SesionAsesoria"] = relationship(back_populates="sesion_asesoria_detalles")
-
     def __repr__(self) -> str:
         _repr = "SesionAsesoriaDetalle("
-        _repr += f"id={self.id!r}, sesion_asesoria={self.sesion_asesoria!r}, "
-        _repr += f"texto_usuario={self.texto_usuario!r}, texto_sistema={self.texto_sistema!r}"
+        _repr += f"id={self.id!r}, "
+        _repr += f"texto_usuario={self.texto_usuario!r}, "
+        _repr += f"texto_sistema={self.texto_sistema!r}"
         _repr += ")"
         return _repr

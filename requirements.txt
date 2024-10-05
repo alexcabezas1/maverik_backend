@@ -15,6 +15,9 @@ certifi==2024.8.30
     # via
     #   httpcore
     #   httpx
+    #   requests
+charset-normalizer==3.3.2
+    # via requests
 click==8.1.7
     # via
     #   typer
@@ -26,9 +29,13 @@ email-validator==2.2.0
     #   maverik-backend (pyproject.toml)
     #   fastapi
 fastapi==0.115.0
-    # via maverik-backend (pyproject.toml)
+    # via
+    #   maverik-backend (pyproject.toml)
+    #   fastapi-utils
 fastapi-cli==0.0.5
     # via fastapi
+fastapi-utils==0.7.0
+    # via maverik-backend (pyproject.toml)
 greenlet==3.1.1
     # via sqlalchemy
 h11==0.14.0
@@ -46,6 +53,7 @@ idna==3.10
     #   anyio
     #   email-validator
     #   httpx
+    #   requests
 jinja2==3.1.4
     # via fastapi
 mako==1.3.5
@@ -58,11 +66,16 @@ markupsafe==2.1.5
     #   mako
 mdurl==0.1.2
     # via markdown-it-py
+mypy-extensions==1.0.0
+    # via typing-inspect
 pg8000==1.31.2
     # via maverik-backend (pyproject.toml)
+psutil==5.9.8
+    # via fastapi-utils
 pydantic==2.9.2
     # via
     #   fastapi
+    #   fastapi-utils
     #   pydantic-settings
 pydantic-core==2.23.4
     # via pydantic
@@ -84,6 +97,8 @@ python-paseto==0.5.2
     # via maverik-backend (pyproject.toml)
 pyyaml==6.0.2
     # via uvicorn
+requests==2.32.3
+    # via maverik-backend (pyproject.toml)
 rich==13.9.2
     # via typer
 ruff==0.6.9
@@ -114,6 +129,11 @@ typing-extensions==4.12.2
     #   pydantic-core
     #   sqlalchemy
     #   typer
+    #   typing-inspect
+typing-inspect==0.9.0
+    # via maverik-backend (pyproject.toml)
+urllib3==2.2.3
+    # via requests
 uvicorn==0.31.0
     # via
     #   maverik-backend (pyproject.toml)
