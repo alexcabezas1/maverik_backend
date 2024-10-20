@@ -5,6 +5,7 @@ from functools import partial
 from typing import Annotated
 
 from fastapi import Depends, FastAPI
+from fastapi.middleware.cors import CORSMiddleware
 from fastapi_utils.tasks import repeat_every
 from sqlalchemy.orm import Session
 
@@ -37,7 +38,19 @@ async def lifespan(app: FastAPI):
     yield
 
 
+origins = [
+    "http://localhost:5173",
+]
+
 app = FastAPI(lifespan=lifespan)
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=origins,
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
+
 secret_key = b"k4.local.doPhJGTf4E4lAtRrC8WKUmr18LwF6T_r-kI9D1C_J-k="  # TODO: auth.create_symmetric_key()
 
 
@@ -61,6 +74,7 @@ async def crear_usuario(
     data: schemas.UsuarioCrearRequest,
     db: Annotated[Session, Depends(obtener_db)],
 ):
+    logging.info(data)
     clave = secrets.token_urlsafe(20)
     valores = schemas.UsuarioCrear(
         email=data.email,
@@ -79,6 +93,7 @@ async def crear_usuario(
     usuario = services.crear_usuario(db=db, valores=valores)
 
     # enviar correo
+    print(clave)
 
     return usuario
 
@@ -92,7 +107,7 @@ async def login_usuario(
     if usuario:
         return auth.sign(str(usuario.id), key=secret_key)
     else:
-        return {"error": "Wrong login details!"}
+        return {"error": "wrong credentials"}
 
 
 @app.post("/copilot/sessions", response_model=schemas.SesionAsesoria, tags=["copilot"])

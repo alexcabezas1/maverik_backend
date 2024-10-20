@@ -86,8 +86,7 @@ class SesionAsesoriaConDetalles(BaseModel):
 
 class UsuarioCrearRequest(BaseModel):
     email: str
-    clave: str
-    fecha_nacimiento: date
+    fecha_nacimiento: date | None
     nivel_educativo_id: int
     conocimiento_alt_inversion_id: int
     experiencia_invirtiendo_id: int

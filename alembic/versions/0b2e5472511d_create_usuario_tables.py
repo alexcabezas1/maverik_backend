@@ -6,21 +6,22 @@ Create Date: 2024-10-03 16:59:43.193954
 
 """
 
-from typing import Sequence, Union, List, Dict, Any
+from collections.abc import Sequence
+from typing import Any
 
-from alembic import op
 import sqlalchemy as sa
 from sqlalchemy.sql.schema import Table
 
+from alembic import op
 
 # revision identifiers, used by Alembic.
 revision: str = "0b2e5472511d"
-down_revision: Union[str, None] = None
-branch_labels: Union[str, Sequence[str], None] = None
-depends_on: Union[str, Sequence[str], None] = None
+down_revision: str | None = None
+branch_labels: str | Sequence[str] | None = None
+depends_on: str | Sequence[str] | None = None
 
 
-def create_table(table_name: str, rows: List[Dict[str, Any]]) -> Table:
+def create_table(table_name: str, rows: list[dict[str, Any]]) -> Table:
     table = op.create_table(
         table_name,
         sa.Column(
@@ -194,7 +195,7 @@ def upgrade() -> None:
         [
             {"desc": "Comprar una casa o un departamento"},
             {"desc": "Comprar un vehículo"},
-            {"desc": "Crear un fondo para estudios universitarios (propios o de una familiar)"},
+            {"desc": "Crear un fondo para estudios universitarios (propios o de un familiar)"},
             {"desc": "Crear un fondo para el retiro jubilatorio"},
             {"desc": "Preservar el valor de los ahorros en el tiempo"},
             {"desc": "Ahorrar para realizar un viaje"},
