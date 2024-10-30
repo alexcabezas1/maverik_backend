@@ -6,10 +6,10 @@ from typing import Annotated
 
 from fastapi import Depends, FastAPI
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi_utils.tasks import repeat_every
+from mangum import Mangum
 from sqlalchemy.orm import Session
 
-from maverik_backend.core import schemas, services
+from maverik_backend.core import schemas, services, smtp
 from maverik_backend.core.database import get_sessionmaker
 from maverik_backend.settings import Settings, load_config
 from maverik_backend.utils import auth
@@ -21,19 +21,26 @@ logging.basicConfig(
 )
 
 app_config: Settings = load_config()
-
-servicios_urls = [
-    "https://maverik-backend.onrender.com/",
-]
+send_email = partial(
+    smtp.send_mail_with_auth,
+    send_from=app_config.mail_sender,
+    server=app_config.smtp_server,
+    port=app_config.smtp_port,
+    username=app_config.smtp_username,
+    password=app_config.smtp_password,
+)
 
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    mantener_servicios_activos_tarea = repeat_every(
-        seconds=480,
-        raise_exceptions=False,
-    )(partial(services.mantener_servicios_activos, servicios_urls))
-    await mantener_servicios_activos_tarea()
+    # servicios_urls = [
+    #     "https://maverik-backend.onrender.com/",
+    # ]
+    # mantener_servicios_activos_tarea = repeat_every(
+    #     seconds=480,
+    #     raise_exceptions=False,
+    # )(partial(services.mantener_servicios_activos, servicios_urls))
+    # await mantener_servicios_activos_tarea()
 
     yield
 
@@ -50,8 +57,10 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+handler = Mangum(app)
 
-secret_key = b"k4.local.doPhJGTf4E4lAtRrC8WKUmr18LwF6T_r-kI9D1C_J-k="  # TODO: auth.create_symmetric_key()
+secret_key = b"k4.local.doPhJGTf4E4lAtRrC8WKUmr18LwF6T_r-kI9D1C_J-k="
+# secret_key = auth.create_symmetric_key()
 
 
 # Dependency
@@ -92,6 +101,21 @@ async def crear_usuario(
 
     usuario = services.crear_usuario(db=db, valores=valores)
 
+    email_body = (
+        "Felicitaciones. Has creado tu cuenta en Maverik Copiloto.<br>"
+        "Tus datos para iniciar sesión son:<br/>"
+        "Usuario: {username}<br>"
+        "Clave: {password}"
+    ).format(
+        username=usuario.email,
+        password=usuario.clave,
+    )
+    send_email(
+        send_to=[usuario.email],
+        subject="Bienvenido a Maverik",
+        text=email_body,
+    )
+
     # enviar correo
     print(clave)
 
@@ -122,14 +146,30 @@ async def nueva_sesion_asesoria(
         usuario_id = auth_payload["user_id"]
 
         valores = schemas.SesionAsesoriaCrear(
+            proposito_sesion_id=data.proposito_sesion_id,
             objetivo_id=data.objetivo_id,
             usuario_id=usuario_id,
             capital_inicial=data.capital_inicial,
-            horizonte_temporal_anios=data.horizonte_temporal_anios,
+            horizonte_temporal=data.horizonte_temporal,
             tolerancia_al_riesgo_id=data.tolerancia_al_riesgo_id,
         )
 
-        sesion_asesoria = services.crear_sesion_asesoria(db=db, valores=valores)
+        new_instance = services.crear_sesion_asesoria(db=db, valores=valores)
+        titulo_chat = services.generar_titulo_chat(sesion=new_instance)
+        primer_input = services.preparar_primer_input(sesion=new_instance)
+
+        sesion_asesoria = schemas.SesionAsesoria(
+            id=new_instance.id,
+            usuario_id=new_instance.usuario_id,
+            proposito_sesion_id=new_instance.proposito_sesion_id,
+            objetivo_id=new_instance.objetivo_id,
+            capital_inicial=new_instance.capital_inicial,
+            horizonte_temporal=new_instance.horizonte_temporal,
+            tolerancia_al_riesgo_id=new_instance.tolerancia_al_riesgo_id,
+            fecha_creacion=new_instance.fecha_creacion,
+            titulo_chat=titulo_chat,
+            primer_input=primer_input,
+        )
 
     return sesion_asesoria
 
@@ -145,13 +185,32 @@ async def agregar_detalle_asesoria(
     auth_token: Annotated[bytes, Depends(auth.PasetoBearer(key=secret_key))],
     db: Annotated[Session, Depends(obtener_db)],
 ):
-    valores = schemas.SesionAsesoriaDetalleCrear(
+    chat = schemas.ChatCrear(
         sesion_asesoria_id=session_id,
-        texto_usuario=data.texto_usuario,
-        texto_sistema=data.texto_sistema,
+        input=data.input,
     )
+    rag_response = services.enviar_chat_al_rag(
+        db=db,
+        valores=chat,
+        app_config=app_config,
+    )
+    logging.info(rag_response)
 
-    sesion_asesoria_detalle = services.crear_sesion_asesoria_detalle(db=db, valores=valores)
+    sesion_asesoria_detalle = None
+    if rag_response:
+        valores = schemas.SesionAsesoriaDetalleCrear(
+            sesion_asesoria_id=session_id,
+            texto_usuario=rag_response.input,
+            texto_sistema=rag_response.output,
+        )
+
+        new_instance = services.crear_sesion_asesoria_detalle(db=db, valores=valores)
+        sesion_asesoria_detalle = schemas.SesionAsesoriaDetalle(
+            id=new_instance.id,
+            sesion_asesoria_id=new_instance.sesion_asesoria_id,
+            input=new_instance.texto_usuario,
+            output=new_instance.texto_sistema,
+        )
 
     return sesion_asesoria_detalle
 
@@ -171,8 +230,8 @@ async def ver_sesion_asesoria_detalle(
         schemas.SesionAsesoriaDetalle(
             id=r.id,
             sesion_asesoria_id=r.sesion_asesoria_id,
-            texto_usuario=r.texto_usuario,
-            texto_sistema=r.texto_sistema,
+            input=r.texto_usuario,
+            output=r.texto_sistema,
         )
         for r in detalles
     ]

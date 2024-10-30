@@ -46,21 +46,25 @@ class UsuarioLogin(BaseModel):
 
 
 class SesionAsesoriaCrear(BaseModel):
-    objetivo_id: int
     usuario_id: int
-    capital_inicial: float
-    horizonte_temporal_anios: int
-    tolerancia_al_riesgo_id: int
+    proposito_sesion_id: int
+    objetivo_id: int | None
+    capital_inicial: float | None
+    horizonte_temporal: int | None
+    tolerancia_al_riesgo_id: int | None
 
 
 class SesionAsesoria(BaseModel):
     id: int
-    objetivo_id: int
     usuario_id: int
-    capital_inicial: float
-    horizonte_temporal_anios: int
-    tolerancia_al_riesgo_id: int
+    proposito_sesion_id: int
+    objetivo_id: int | None
+    capital_inicial: float | None
+    horizonte_temporal: int | None
+    tolerancia_al_riesgo_id: int | None
     fecha_creacion: datetime
+    titulo_chat: str | None
+    primer_input: str | None
 
     class Config:
         from_attributes = True
@@ -75,13 +79,18 @@ class SesionAsesoriaDetalleCrear(BaseModel):
 class SesionAsesoriaDetalle(BaseModel):
     id: int
     sesion_asesoria_id: int
-    texto_usuario: str
-    texto_sistema: str
+    input: str
+    output: str
 
 
 class SesionAsesoriaConDetalles(BaseModel):
     id: int
     detalles: list[SesionAsesoriaDetalle]
+
+
+class ChatCrear(BaseModel):
+    sesion_asesoria_id: int
+    input: str | None
 
 
 class UsuarioCrearRequest(BaseModel):
@@ -98,12 +107,29 @@ class UsuarioCrearRequest(BaseModel):
 
 
 class SesionAsesoriaCrearRequest(BaseModel):
-    objetivo_id: int
-    capital_inicial: float
-    horizonte_temporal_anios: int
-    tolerancia_al_riesgo_id: int
+    proposito_sesion_id: int
+    objetivo_id: int | None
+    capital_inicial: float | None
+    horizonte_temporal: int | None
+    tolerancia_al_riesgo_id: int | None
 
 
 class SesionAsesoriaDetalleRequest(BaseModel):
+    input: str | None
+
+
+class ChatCrearRequest(BaseModel):
+    sesion_asesoria_id: int
     texto_usuario: str
     texto_sistema: str
+
+
+class RagServiceRequestMessage(BaseModel):
+    userProfile: str
+    chatHistory: list[tuple[str, str]] = []
+    input: str
+
+
+class RagServiceResponseMessage(BaseModel):
+    input: str
+    output: str

@@ -203,6 +203,15 @@ def upgrade() -> None:
         ],
     )
 
+    create_table(
+        "proposito_sesion",
+        [
+            {"desc": "Fortalecer mis conocimientos financieros"},
+            {"desc": "Buscar asistencia para lograr un objetivo personal"},
+            {"desc": "Obtener información de los mercados y realizar investigación financiera"},
+        ],
+    )
+
     op.create_table(
         "sesion_asesoria",
         sa.Column(
@@ -211,17 +220,19 @@ def upgrade() -> None:
             sa.Identity(always=False, start=1, cycle=True),
             primary_key=True,
         ),
-        sa.Column("objetivo_id", sa.BIGINT, server_default="1", nullable=False),
+        sa.Column("proposito_sesion_id", sa.BIGINT, server_default="1"),
+        sa.Column("objetivo_id", sa.BIGINT),
         sa.Column("usuario_id", sa.BIGINT, nullable=False),
-        sa.Column("capital_inicial", sa.NUMERIC, server_default="0", nullable=False),
-        sa.Column("horizonte_temporal_anios", sa.SMALLINT, server_default="3", nullable=False),
-        sa.Column("tolerancia_al_riesgo_id", sa.SMALLINT, server_default="1", nullable=False),
+        sa.Column("capital_inicial", sa.NUMERIC),
+        sa.Column("horizonte_temporal", sa.SMALLINT),  # meses
+        sa.Column("tolerancia_al_riesgo_id", sa.SMALLINT),
         sa.Column("fecha_creacion", sa.DateTime, server_default=sa.func.current_timestamp(), nullable=False),
     )
 
     create_fk("sesion_asesoria", "usuario")
     create_fk("sesion_asesoria", "tolerancia_al_riesgo")
     create_fk("sesion_asesoria", "objetivo")
+    create_fk("sesion_asesoria", "proposito_sesion")
 
     op.create_table(
         "sesion_asesoria_detalle",
@@ -232,8 +243,8 @@ def upgrade() -> None:
             primary_key=True,
         ),
         sa.Column("sesion_asesoria_id", sa.BIGINT, nullable=False),
-        sa.Column("texto_usuario", sa.String(length=2000), nullable=False),
-        sa.Column("texto_sistema", sa.String(length=2000), nullable=False),
+        sa.Column("texto_usuario", sa.String(length=8000), nullable=False),
+        sa.Column("texto_sistema", sa.String(length=8000), nullable=False),
     )
 
     create_fk("sesion_asesoria_detalle", "sesion_asesoria")

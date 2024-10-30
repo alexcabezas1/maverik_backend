@@ -1,11 +1,13 @@
 import logging
+from datetime import datetime
 
 import requests
 from sqlalchemy.exc import NoResultFound
 from sqlalchemy.orm import Query, Session
 
-from maverik_backend.core import schemas
+from maverik_backend.core import models, schemas
 from maverik_backend.core.models import SesionAsesoria, SesionAsesoriaDetalle, Usuario
+from maverik_backend.settings import Settings
 
 
 def crear_usuario(db: Session, valores: schemas.UsuarioCrear) -> Usuario:
@@ -31,10 +33,11 @@ def crear_usuario(db: Session, valores: schemas.UsuarioCrear) -> Usuario:
 
 def crear_sesion_asesoria(db: Session, valores: schemas.SesionAsesoriaCrear) -> SesionAsesoria:
     sesion_asesoria = SesionAsesoria(
+        proposito_sesion_id=valores.proposito_sesion_id,
         objetivo_id=valores.objetivo_id,
         usuario_id=valores.usuario_id,
         capital_inicial=valores.capital_inicial,
-        horizonte_temporal_anios=valores.horizonte_temporal_anios,
+        horizonte_temporal=valores.horizonte_temporal,
         tolerancia_al_riesgo_id=valores.tolerancia_al_riesgo_id,
     )
     db.add(sesion_asesoria)
@@ -72,11 +75,139 @@ def verificar_usuario(db: Session, data: schemas.UsuarioLogin) -> Usuario | None
 
 
 def cargar_sesion_asesoria_detalles(db: Session, sesion_asesoria_id: int) -> list[SesionAsesoriaDetalle]:
-    query = Query(SesionAsesoriaDetalle).filter_by(sesion_asesoria_id=sesion_asesoria_id)
+    query = (
+        Query(SesionAsesoriaDetalle)
+        .filter_by(sesion_asesoria_id=sesion_asesoria_id)
+        .order_by(SesionAsesoriaDetalle.id.asc())
+    )
     try:
         return query.with_session(db).all()
     except NoResultFound:
         return None
+
+
+def cargar_sesion_asesoria(db: Session, id: int) -> SesionAsesoria:
+    query = Query(SesionAsesoria).filter(SesionAsesoria.id == id)
+    try:
+        return query.with_session(db).one()
+    except NoResultFound:
+        return None
+
+
+def preparar_user_profile(usuario: Usuario) -> str:
+    nivel_educativo: models.NivelEducativo = usuario.nivel_educativo
+    conocimiento_alt_inversion: models.ConocimientoAltInversion = usuario.conocimiento_alt_inversion
+    experiencia_invirtiendo: models.ExperienciaInvirtiendo = usuario.experiencia_invirtiendo
+    porcentaje_ahorro_mensual: models.PorcentajeAhorroMensual = usuario.porcentaje_ahorro_mensual
+    porcentaje_ahorro_invertir: models.PorcentajeAhorroInvertir = usuario.porcentaje_ahorro_invertir
+    tiempo_mantener_inversion: models.TiempoMantenerInversion = usuario.tiempo_mantener_inversion
+    busca_invertir_en: models.BuscaInvertirEn = usuario.busca_invertir_en
+    proporcion_inversion_mantener: models.ProporcionInversionMantener = usuario.proporcion_inversion_mantener
+
+    username = usuario.email.split("@")[0]
+
+    user_profile = (
+        "Hola, mi nombre es {}. "
+        "Mi nivel educativo es {}. "
+        "Mi experiencia invirtiendo es {}. "
+        "Mi conocimiento sobre las distintas alternativas de inversión en el mercado de capitales es {}. "
+        "Puedo ahorrar mensualmente {} de mis ingresos. "
+        "Estoy dispuesto/a a invertir {} de mis ahorros. "
+        "Puedo mantener una inversión por {}. "
+        "Cuando realizo inversiones principalmente busco {}. "
+        "Si observo una baja importante en el valor de uno de mis activos, {}."
+    ).format(
+        username,
+        nivel_educativo.desc.lower(),
+        experiencia_invirtiendo.desc.lower(),
+        conocimiento_alt_inversion.desc.lower(),
+        porcentaje_ahorro_mensual.desc.lower(),
+        porcentaje_ahorro_invertir.desc.lower(),
+        tiempo_mantener_inversion.desc.lower(),
+        busca_invertir_en.desc.lower(),
+        proporcion_inversion_mantener.desc.lower(),
+    )
+
+    return user_profile
+
+
+def preparar_primer_input(sesion: SesionAsesoria) -> str:
+    proposito_sesion: models.PropositoSesion = sesion.proposito_sesion
+    objetivo: models.Objetivo = sesion.objetivo
+    tolerancia_al_riesgo: models.ToleranciaAlRiesgo = sesion.tolerancia_al_riesgo
+
+    primer_input = "En esta oportunidad, vine a {}.".format(proposito_sesion.desc.lower())
+    if objetivo:
+        primer_input += (
+            " Quiero {}. "
+            "Dispongo de un capital inicial de {:.2f}. "
+            "Me gustaría lograr este objetivo en {} meses. "
+            "Mi tolerancia al riesgo para lograr este objetivo es {}."
+        ).format(
+            objetivo.desc.lower(),
+            float(sesion.capital_inicial),
+            sesion.horizonte_temporal,
+            tolerancia_al_riesgo.desc.lower(),
+        )
+
+    return primer_input
+
+
+def generar_titulo_chat(sesion: SesionAsesoria) -> str:
+    proposito_sesion: models.PropositoSesion = sesion.proposito_sesion
+    objetivo: models.Objetivo = sesion.objetivo
+
+    now = datetime.now()
+    timestamp = now.strftime("%m/%d/%Y, %H:%M:%S")
+
+    titulo_chat = "({}) ".format(timestamp)
+    if sesion.proposito_sesion_id == 2:
+        titulo_chat += "{}".format(objetivo.desc)
+    else:
+        titulo_chat += "{}".format(proposito_sesion.desc)
+
+    return titulo_chat
+
+
+def enviar_chat_al_rag(
+    db: Session,
+    valores: schemas.ChatCrear,
+    app_config: Settings,
+) -> schemas.RagServiceResponseMessage | None:
+    sesion_asesoria: SesionAsesoria = cargar_sesion_asesoria(db=db, id=valores.sesion_asesoria_id)
+    usuario: Usuario = sesion_asesoria.usuario
+
+    user_profile = preparar_user_profile(usuario)
+
+    # si el input=None quiere decir que es el primer input
+    # entonces se puede generar este input a partir de la informacion ya suministrada
+    if valores.input:
+        input = valores.input
+        detalles: list[SesionAsesoriaDetalle] = cargar_sesion_asesoria_detalles(
+            db=db,
+            sesion_asesoria_id=valores.sesion_asesoria_id,
+        )
+        chat_history = [(det.texto_usuario, det.texto_sistema) for det in detalles]
+    else:
+        input = preparar_primer_input(sesion=sesion_asesoria)
+        chat_history = []
+
+    mensaje_usuario = schemas.RagServiceRequestMessage(
+        userProfile=user_profile,
+        input=input,
+        chatHistory=chat_history,
+    )
+
+    logging.info("enviando input al servicio RAG: %s ...", mensaje_usuario)
+    # resp = requests.post(app_config.rag_service_url + "/api/chat", data=mensaje_usuario.json())
+    # if resp.status_code == 200:
+    #     logging.info(resp.json())
+    #     output = resp.json()["response"]
+    #     return schemas.RagServiceResponseMessage(input=input, output=output)
+    # else:
+    #     return None
+
+    return schemas.RagServiceResponseMessage(input=input, output="me parece bien tu objetivo")
 
 
 def mantener_servicios_activos(urls: list[str]):

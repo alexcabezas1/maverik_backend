@@ -204,18 +204,35 @@ class ToleranciaAlRiesgo(Base):
         return f"ToleranciaAlRiesgo(id={self.id!r}, desc={self.desc!r})"
 
 
+class PropositoSesion(Base):
+    __tablename__ = "proposito_sesion"
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    desc: Mapped[str] = mapped_column(String(500))
+
+    sesiones_asesoria: Mapped[list["SesionAsesoria"]] = relationship(
+        back_populates="proposito_sesion",
+        cascade="all, delete-orphan",
+    )
+
+    def __repr__(self) -> str:
+        return f"PropositoSesion(id={self.id!r}, desc={self.desc!r})"
+
+
 class SesionAsesoria(Base):
     __tablename__ = "sesion_asesoria"
 
     id: Mapped[int] = mapped_column(primary_key=True)
-    objetivo_id: Mapped[int] = mapped_column(ForeignKey("objetivo.id"))
     usuario_id: Mapped[int] = mapped_column(ForeignKey("usuario.id"))
-    capital_inicial: Mapped[Numeric] = mapped_column(Numeric(10, 4), default=0.0)
-    horizonte_temporal_anios: Mapped[int] = mapped_column(default=3)
-    tolerancia_al_riesgo_id: Mapped[int] = mapped_column(ForeignKey("tolerancia_al_riesgo.id"))
+    proposito_sesion_id: Mapped[int] = mapped_column(ForeignKey("proposito_sesion.id"))
+    objetivo_id: Mapped[int] = mapped_column(ForeignKey("objetivo.id"), nullable=True)
+    capital_inicial: Mapped[Numeric] = mapped_column(Numeric(13, 4), nullable=True)
+    horizonte_temporal: Mapped[int] = mapped_column(nullable=True)
+    tolerancia_al_riesgo_id: Mapped[int] = mapped_column(ForeignKey("tolerancia_al_riesgo.id"), nullable=True)
     fecha_creacion: Mapped[datetime] = mapped_column(default=datetime.now(DT.UTC))
 
     objetivo: Mapped["Objetivo"] = relationship(back_populates="sesiones_asesoria")
+    proposito_sesion: Mapped["PropositoSesion"] = relationship(back_populates="sesiones_asesoria")
     usuario: Mapped["Usuario"] = relationship(back_populates="sesiones_asesoria")
     tolerancia_al_riesgo: Mapped["ToleranciaAlRiesgo"] = relationship(back_populates="sesiones_asesoria")
 
@@ -224,10 +241,12 @@ class SesionAsesoria(Base):
 
     def __repr__(self) -> str:
         _repr = "SesionAsesoria("
-        _repr += f"id={self.id!r}, objetivo={self.objetivo!r}, usuario={self.usuario!r}, "
+        _repr += f"id={self.id!r}, usuario={self.usuario!r}, proposito_sesion={self.proposito_sesion!r}, "
+        _repr += f"objetivo={self.objetivo!r}, "
         _repr += f"capital_inicial={self.capital_inicial!r}, "
-        _repr += f"horizonte_temporal_anios={self.horizonte_temporal_anios!r}, "
-        _repr += f"tolerancia_al_riesgo={self.tolerancia_al_riesgo!r}, fecha_creacion={self.fecha_creacion!r}"
+        _repr += f"horizonte_temporal={self.horizonte_temporal!r}, "
+        _repr += f"tolerancia_al_riesgo={self.tolerancia_al_riesgo!r}, "
+        _repr += f"fecha_creacion={self.fecha_creacion!r}"
         _repr += ")"
         return _repr
 
