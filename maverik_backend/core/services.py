@@ -199,15 +199,15 @@ def enviar_chat_al_rag(
     )
 
     logging.info("enviando input al servicio RAG: %s ...", mensaje_usuario)
-    # resp = requests.post(app_config.rag_service_url + "/api/chat", data=mensaje_usuario.json())
-    # if resp.status_code == 200:
-    #     logging.info(resp.json())
-    #     output = resp.json()["response"]
-    #     return schemas.RagServiceResponseMessage(input=input, output=output)
-    # else:
-    #     return None
+    resp = requests.post(app_config.rag_service_url + "/api/chat", data=mensaje_usuario.json())
+    if resp.status_code == 200:
+        logging.info(resp.json())
+        output = resp.json()["response"]
+        return schemas.RagServiceResponseMessage(input=input, output=output)
+    else:
+        return None
 
-    return schemas.RagServiceResponseMessage(input=input, output="me parece bien tu objetivo")
+    # return schemas.RagServiceResponseMessage(input=input, output="me parece bien tu objetivo")
 
 
 def mantener_servicios_activos(urls: list[str]):
