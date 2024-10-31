@@ -200,7 +200,7 @@ def enviar_chat_al_rag(
 
     logging.info("enviando input al servicio RAG: %s ...", mensaje_usuario)
     resp = requests.post(app_config.rag_service_url + "/api/chat", json=mensaje_usuario.dict())
-    logging.info("%s %s", resp.status_code, resp.text())
+    logging.info(resp.status_code)
     if resp.status_code == 200:
         output = resp.json()["response"]
         return schemas.RagServiceResponseMessage(input=input, output=output)
