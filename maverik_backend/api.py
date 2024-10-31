@@ -45,15 +45,10 @@ async def lifespan(app: FastAPI):
     yield
 
 
-origins = [
-    "http://localhost:5173",
-    "https://main.d1flwzqkwys247.amplifyapp.com",
-]
-
 app = FastAPI(lifespan=lifespan)
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=origins,
+    allow_origins=["*"],
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
@@ -105,20 +100,20 @@ async def crear_usuario(
     email_body = (
         "Felicitaciones. Has creado tu cuenta en Maverik Copiloto.<br>"
         "Tus datos para iniciar sesión son:<br/>"
-        "Usuario: {username}<br>"
-        "Clave: {password}"
+        "Usuario: {username}<br/>"
+        "Clave: {password}<br/>"
+        "Website: {weburl}"
     ).format(
         username=usuario.email,
         password=usuario.clave,
+        weburl=app_config.frontend_url,
     )
     send_email(
         send_to=[usuario.email],
         subject="Bienvenido a Maverik",
         text=email_body,
     )
-
-    # enviar correo
-    print(clave)
+    print("clave={}".format(clave))
 
     return usuario
 
@@ -130,7 +125,7 @@ async def login_usuario(
 ):
     usuario = services.verificar_usuario(db, data)
     if usuario:
-        return auth.sign(str(usuario.id), key=secret_key)
+        return auth.sign(user=usuario, key=secret_key)
     else:
         return {"error": "wrong credentials"}
 

@@ -46,8 +46,9 @@ def token_response(token: bytes) -> dict[str, str]:
     }
 
 
-def sign(user_id: str, key: bytes) -> dict[str, str]:
-    payload = {"user_id": user_id, "expires": time.time() + 86400}
+def sign(user: Any, key: bytes) -> dict[str, str]:
+    user_name = user.email.split("@")[0]
+    payload = {"user_id": user.id, "user_name": user_name, "expires": time.time() + 86400}
     message = bytes(json.dumps(payload), encoding="utf-8")
     token = encrypt(message, key)
 
