@@ -19,11 +19,10 @@ class Settings(BaseSettings):
     rag_service_url: str = None
     frontend_url: str = ""
 
-    smtp_server: str = "smtp.gmail.com"
-    smtp_port: int = 587
-    smtp_username: str
-    smtp_password: str
-    mail_sender: str
+    smtp_api_url: str
+    smtp_api_key: str
+    mail_sender_name: str
+    mail_sender_address: str
 
 
 def load_config() -> Settings:

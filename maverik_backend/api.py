@@ -22,12 +22,13 @@ logging.basicConfig(
 
 app_config: Settings = load_config()
 send_email = partial(
-    smtp.send_mail_with_auth,
-    send_from=app_config.mail_sender,
-    server=app_config.smtp_server,
-    port=app_config.smtp_port,
-    username=app_config.smtp_username,
-    password=app_config.smtp_password,
+    smtp.send_email_with_api,
+    api_url=app_config.smtp_api_url,
+    api_key=app_config.smtp_api_key,
+    sender=(
+        app_config.mail_sender_name,
+        app_config.mail_sender_address,
+    ),
 )
 
 
@@ -109,9 +110,9 @@ async def crear_usuario(
         weburl=app_config.frontend_url,
     )
     send_email(
-        send_to=[usuario.email],
+        to_email=usuario.email,
         subject="Bienvenido a Maverik",
-        text=email_body,
+        body=email_body,
     )
     print("clave={}".format(clave))
 
