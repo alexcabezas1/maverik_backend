@@ -94,6 +94,16 @@ def cargar_sesion_asesoria(db: Session, id: int) -> SesionAsesoria:
         return None
 
 
+def obtener_perfil_riesgo(sesion_asesoria: SesionAsesoria) -> str:
+    tolerancia_al_riesgo = {
+        "baja": "conservative",
+        "media": "moderate",
+        "alta": "bold",
+    }
+
+    return tolerancia_al_riesgo[sesion_asesoria.tolerancia_al_riesgo.desc]
+
+
 def preparar_user_profile(usuario: Usuario) -> str:
     nivel_educativo: models.NivelEducativo = usuario.nivel_educativo
     conocimiento_alt_inversion: models.ConocimientoAltInversion = usuario.conocimiento_alt_inversion
@@ -178,6 +188,7 @@ def enviar_chat_al_rag(
     usuario: Usuario = sesion_asesoria.usuario
 
     user_profile = preparar_user_profile(usuario)
+    risk_profile = obtener_perfil_riesgo(sesion_asesoria)
 
     # si el input=None quiere decir que es el primer input
     # entonces se puede generar este input a partir de la informacion ya suministrada
@@ -206,18 +217,19 @@ def enviar_chat_al_rag(
         output = resp.json()["response"]
         if output and len(chat_history) == 0:
             logging.info("enviando petición al servicio de optimización para obtener un portafolio ...")
-            url = app_config.portfolio_optimization_url + "/portfolio/generate/moderate"
+            url = app_config.portfolio_optimization_url + "/portfolio/generate/{}".format(risk_profile)
             os_resp = requests.post(url)
             if os_resp.status_code == 200:
                 portfolio = os_resp.json()
                 composicion_texto = ", ".join(
                     [
-                        "{} ({:.8f})".format(asset, portfolio["weights"][index])
+                        "{} ({:.10f}%)".format(asset, portfolio["weights"][index])
                         for index, asset in enumerate(portfolio["assets"])
                     ]
                 )
                 portfolio_texto = (
-                    " Adicionalmente, haciendo uso de un servicio de terceros pude obtener un portafolio "
+                    "    Además te traigo una información preliminar que puede ser de tu interés, "
+                    "haciendo uso de un servicio de terceros pude obtener un portafolio "
                     "con una distribución interesante de acciones "
                     "para tener en cuenta como una idea de inversión. "
                     "El portafolio esta compuesto de la siguiente manera: {}"
