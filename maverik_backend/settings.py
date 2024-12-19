@@ -18,6 +18,7 @@ class Settings(BaseSettings):
 
     rag_service_url: str = None
     frontend_url: str = ""
+    portfolio_optimization_url: str = None
 
     smtp_api_url: str
     smtp_api_key: str

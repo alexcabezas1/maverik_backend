@@ -201,8 +201,30 @@ def enviar_chat_al_rag(
     logging.info("enviando input al servicio RAG: %s ...", mensaje_usuario)
     resp = requests.post(app_config.rag_service_url + "/api/chat", json=mensaje_usuario.dict())
     logging.info(resp.status_code)
+    output = None
     if resp.status_code == 200:
         output = resp.json()["response"]
+        if output and len(chat_history) == 0:
+            logging.info("enviando petición al servicio de optimización para obtener un portafolio ...")
+            url = app_config.portfolio_optimization_url + "/portfolio/generate/moderate"
+            os_resp = requests.post(url)
+            if os_resp.status_code == 200:
+                portfolio = os_resp.json()
+                composicion_texto = ", ".join(
+                    [
+                        "{} ({:.8f})".format(asset, portfolio["weights"][index])
+                        for index, asset in enumerate(portfolio["assets"])
+                    ]
+                )
+                portfolio_texto = (
+                    " Adicionalmente, haciendo uso de un servicio de terceros pude obtener un portafolio "
+                    "con una distribución interesante de acciones "
+                    "para tener en cuenta como una idea de inversión. "
+                    "El portafolio esta compuesto de la siguiente manera: {}"
+                ).format(composicion_texto)
+                output += portfolio_texto
+
+    if output:
         return schemas.RagServiceResponseMessage(input=input, output=output)
     else:
         return None
